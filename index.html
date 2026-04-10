@@ -1288,143 +1288,86 @@ function updateSummaryBand(channel, obs, agentMap, aggData) {
   if (tgt) tgt.textContent = `Target ${cfg.slTarget}%`;
 }
 
-// ── LIVE STATE (fed by WebSocket) ──
-let liveObs      = {};  // {queueId: {waiting, interacting, longestWaitSec}}
-let liveAgentMap = {};  // {queueId: agentCount}
-let wsInitialized = false;
-
 // ── WEBSOCKET NOTIFICATION ENGINE ──
-let ws = null, wsChannel = null, wsHeartbeat = null, wsAggTimer = null, wsReconnectTimer = null;
+// Used to detect conversation state changes and trigger an immediate REST poll,
+// rather than waiting for the next scheduled interval.
+// Genesys analytics observation metrics (oWaiting, oInteracting etc.) are REST-only —
+// there is no push topic that delivers them directly. Instead we subscribe to
+// conversation-level queue topics so any activity triggers an instant refresh.
+let ws = null, wsChannel = null, wsHeartbeat = null, wsReady = false;
 
 async function startWebSocket() {
   try {
-    // 1. Create a notification channel
     const ch = await api('/api/v2/notifications/channels', { method: 'POST' });
     wsChannel = ch;
 
-    // 2. Build topic list: observations + users per queue
+    // Subscribe to active conversation topics for every queue.
+    // Any call/chat/email state change fires a message → we immediately re-poll.
     const topics = allQueues().flatMap(q => [
-      { id: `v2.analytics.queues.${q.id}.observations` },
-      { id: `v2.routing.queues.${q.id}.users`          },
+      { id: `v2.routing.queues.${q.id}.conversations`       },
+      { id: `v2.routing.queues.${q.id}.conversations.calls` },
     ]);
     await api(`/api/v2/notifications/channels/${ch.id}/subscriptions`, {
       method: 'POST',
       body: JSON.stringify(topics),
     });
 
-    // 3. Open WebSocket
     ws = new WebSocket(ch.connectUri);
 
     ws.onopen = () => {
-      setBadge('live','LIVE');
-      // Heartbeat — required by Genesys to confirm socket is open
+      wsReady = true;
       wsHeartbeat = setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send('{"message":"ping"}');
-        }
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send('{"message":"ping"}');
       }, 60000);
-      // Seed initial state with one REST poll so the dashboard isn't blank
-      if (!wsInitialized) { initialPoll(); wsInitialized = true; }
     };
 
     ws.onmessage = (evt) => {
       try {
         const msg = JSON.parse(evt.data);
         const topic = msg.topicName || '';
-        // Ignore heartbeat / system messages
-        if (!msg.eventBody || topic.startsWith('channel.') || topic.startsWith('v2.system.')) return;
-        if (topic.includes('.observations')) handleObservationEvent(msg);
-        if (topic.includes('.users'))        handleUsersEvent(msg);
+        // Ignore heartbeats and system messages
+        if (topic.startsWith('channel.') || topic.startsWith('v2.system.')) return;
+        if (!msg.eventBody) return;
+        // A conversation changed state in one of our queues — poll immediately
+        // but debounce to avoid hammering if several events arrive at once
+        scheduleFastPoll();
       } catch(e) { /* ignore malformed frames */ }
     };
 
-    ws.onerror = () => { setBadge('error','ERROR'); };
+    ws.onerror = () => { wsReady = false; };
 
     ws.onclose = (evt) => {
+      wsReady = false;
       clearInterval(wsHeartbeat); wsHeartbeat = null;
-      // Graceful Genesys maintenance close — reconnect after 3s
+      // Reconnect unless it was a clean close (e.g. token expired handled elsewhere)
       if (evt.code !== 1000) {
-        setBadge('error','RECONNECTING');
-        wsReconnectTimer = setTimeout(() => {
-          wsInitialized = false;
-          startWebSocket();
-        }, 3000);
+        setTimeout(startWebSocket, 5000);
       }
     };
-
   } catch(e) {
-    if (e.message === '401') return; // handleExpired already called
-    setBadge('error','ERROR');
-    toast(`WebSocket setup failed: ${e.message} — retrying in 15s`, true);
-    wsReconnectTimer = setTimeout(() => { wsInitialized = false; startWebSocket(); }, 15000);
+    if (e.message !== '401') {
+      // Non-fatal — dashboard continues on REST polling alone if WS fails
+      console.warn('WebSocket setup failed, continuing on REST polling:', e.message);
+    }
   }
 }
 
-// ── OBSERVATION EVENT HANDLER ──
-function handleObservationEvent(msg) {
-  const body = msg.eventBody;
-  // eventBody may be an array of metric results or a single object
-  const rows = Array.isArray(body) ? body : (body.results || [body]);
-  rows.forEach(row => {
-    const qId = row.group?.queueId || msg.topicName.split('.')[3];
-    if (!qId) return;
-    if (!liveObs[qId]) liveObs[qId] = { waiting: 0, interacting: 0, longestWaitSec: 0 };
-    for (const d of (row.data || [])) {
-      for (const m of (d.metrics || [])) {
-        if (m.metric === 'oWaiting')     liveObs[qId].waiting      = m.stats?.count ?? liveObs[qId].waiting;
-        if (m.metric === 'oInteracting') liveObs[qId].interacting  = m.stats?.count ?? liveObs[qId].interacting;
-        if (m.metric === 'oLongestWaiting') {
-          const ms = m.stats?.calculatedMetricValue ?? 0;
-          liveObs[qId].longestWaitSec = ms > 0 ? Math.round((Date.now() - ms) / 1000) : 0;
-        }
-      }
-    }
-  });
-  renderLive();
+// ── DEBOUNCED FAST POLL ──
+// Triggered by WebSocket conversation events. Waits 800ms to batch rapid events,
+// then fires a full poll. Resets the scheduled interval timer so we don't double-poll.
+let fastPollTimer = null;
+function scheduleFastPoll() {
+  if (fastPollTimer) return; // already scheduled
+  fastPollTimer = setTimeout(() => {
+    fastPollTimer = null;
+    // Reset the regular interval so we don't poll again too soon after this
+    clearInterval(timer);
+    timer = setInterval(poll, CONFIG.REFRESH_MS);
+    poll();
+  }, 800);
 }
 
-// ── USERS EVENT HANDLER ──
-function handleUsersEvent(msg) {
-  const body = msg.eventBody;
-  const qId  = msg.topicName.split('.')[3];
-  if (!qId) return;
-  // eventBody contains the full list of on-queue members after the change
-  const onQueue = (body.entities || body.members || [])
-    .filter(u => u.routingStatus?.status === 'IDLE' || u.routingStatus?.status === 'INTERACTING' ||
-                 u.presence?.presenceDefinition?.systemPresence === 'On Queue').length;
-  liveAgentMap[qId] = onQueue;
-  renderLive();
-}
-
-// ── LIVE RENDER (called on every WebSocket push) ──
-function renderLive() {
-  render(liveObs, liveAgentMap);
-  if (Object.keys(perQueueAgg).length) applyPerQueueAgg();
-  checkAlerts(liveObs, liveAgentMap);
-  startCountdown();
-}
-
-// ── INITIAL REST SEED (runs once on connect to populate data before first WS push) ──
-async function initialPoll() {
-  try {
-    const obs = await getObservations();
-    const agentMap = {};
-    await Promise.all(allQueues().map(async q => { agentMap[q.id] = await getAgents(q.id); }));
-    // Merge into live state
-    Object.assign(liveObs, obs);
-    Object.assign(liveAgentMap, agentMap);
-    renderLive();
-    pollSummaryBand(liveObs, liveAgentMap);
-    // Start aggregate refresh on 90s cycle (same as original REFRESH_MS)
-    if (!wsAggTimer) {
-      wsAggTimer = setInterval(() => pollSummaryBand(liveObs, liveAgentMap), CONFIG.REFRESH_MS);
-    }
-  } catch(e) {
-    if (e.message !== '401') { setBadge('error','ERROR'); toast(`Initial data load failed: ${e.message}`, true); }
-  }
-}
-
-// ── LEGACY poll() — kept for fallback reference, no longer called by boot ──
+// ── POLL ──
 async function poll() {
   try {
     const obs=await getObservations();
@@ -1505,9 +1448,9 @@ function updateCardAgg(key, agg, isVoice) {
 // ── BOOT ──
 (function boot(){
   const t=parseToken();
-  if(t){token=t;localStorage.setItem('_dbgt',t);history.replaceState(null,'',window.location.pathname);startWebSocket();return;}
+  if(t){token=t;localStorage.setItem('_dbgt',t);history.replaceState(null,'',window.location.pathname);poll();timer=setInterval(poll,CONFIG.REFRESH_MS);startWebSocket();return;}
   const stored=localStorage.getItem('_dbgt');
-  if(stored){token=stored;startWebSocket();return;}
+  if(stored){token=stored;poll();timer=setInterval(poll,CONFIG.REFRESH_MS);startWebSocket();return;}
   showAuth();
 })();
 
