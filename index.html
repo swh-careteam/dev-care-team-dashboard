@@ -531,8 +531,9 @@
       display: flex; align-items: stretch; gap: 0.75rem; flex-wrap: wrap;
       margin-bottom: clamp(0.4rem,0.8vw,0.7rem);
     }
-    .top-row > .summary-row { flex: 1 1 720px; margin-bottom: 0; min-width: 0; }
-    .top-row > .agent-status-row { flex: 0 0 clamp(320px, 26vw, 400px); margin-bottom: 0; }
+    /* Grow ratio 55/45; flex-basis sets the minimum proportional width. */
+    .top-row > .summary-row      { flex: 55 1 560px; margin-bottom: 0; min-width: 0; }
+    .top-row > .agent-status-row { flex: 45 1 460px; margin-bottom: 0; min-width: 0; }
 
     /* ── AGENT STATUS CARD ── */
     .agent-status-row {
@@ -560,85 +561,89 @@
       color: var(--summary-sub); text-align: center; line-height: 1.4;
     }
     .agent-status-body {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.55rem 0.85rem;
+      display: grid;
+      grid-template-columns: minmax(160px, 0.9fr) 1fr;
+      align-items: stretch;
+      gap: 0.85rem;
+      padding: 0.65rem 0.85rem;
       flex: 1; min-width: 0;
       background: var(--summary-ch-bg);
     }
-    .agent-donut-col {
-      display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
-      flex-shrink: 0;
+
+    /* Middle column: On-Queue pill + routing-status breakdown */
+    .agent-status-mid {
+      display: flex; flex-direction: column; gap: 0.55rem;
+      justify-content: center;
+      padding-right: 0.85rem;
+      border-right: 1px solid var(--summary-stat-sep);
+      min-width: 0;
     }
-    .agent-donut-wrap {
-      position: relative; width: 90px; height: 90px;
-    }
-    .agent-donut-wrap svg {
-      width: 100%; height: 100%;
-      transform: rotate(-90deg); display: block;
-    }
-    .agent-donut-wrap .track {
-      fill: none; stroke: var(--progress-track); stroke-width: 12;
-    }
-    .agent-donut-wrap .seg {
-      fill: none; stroke-width: 12; stroke-linecap: butt;
-      transition: stroke-dasharray 0.6s ease;
-      filter: drop-shadow(0 0 6px currentColor);
-    }
-    .agent-donut-total {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      pointer-events: none;
-    }
-    .agent-donut-total .val {
-      font-family: var(--font-h); font-size: 1.55rem; font-weight: 700;
-      line-height: 1; color: var(--summary-stat-val);
-      font-variant-numeric: tabular-nums;
-    }
-    .agent-donut-total .lbl {
-      font-family: var(--font-h); font-size: 0.48rem; font-weight: 700;
-      letter-spacing: 0.14em; text-transform: uppercase;
-      color: var(--summary-stat-lbl); margin-top: 0.2rem;
-    }
-    .agent-onqueue {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.18rem 0.55rem;
-      border-radius: 20px;
+    .agent-onqueue-pill {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 22px;
       border: 1px solid var(--summary-lbl-bdr);
       background: var(--summary-lbl-bg);
-      font-family: var(--font-h); font-size: 0.6rem; font-weight: 600;
-      color: var(--summary-stat-lbl); letter-spacing: 0.06em;
+      font-family: var(--font-h); font-size: 0.78rem; font-weight: 600;
+      color: var(--summary-stat-lbl); letter-spacing: 0.05em;
       text-transform: uppercase; white-space: nowrap;
     }
-    .agent-onqueue .swatch {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    .agent-onqueue-pill .swatch {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #4fd4e8; box-shadow: 0 0 8px rgba(79,212,232,0.8);
+      flex-shrink: 0;
     }
-    .agent-onqueue .name { color: var(--summary-stat-lbl); }
-    .agent-onqueue .count {
+    .agent-onqueue-pill .name  { color: var(--summary-stat-lbl); flex: 1; }
+    .agent-onqueue-pill .count {
       color: var(--summary-stat-val);
-      font-size: 0.8rem; font-weight: 700;
+      font-size: 1.1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
     }
-    .agent-legend {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap: 0.18rem 0.7rem;
-      flex: 1; min-width: 0;
+    .agent-routing-list {
+      display: flex; flex-direction: column; gap: 0.28rem;
+      padding: 0.1rem 0.3rem 0;
+    }
+    .agent-routing-item {
+      display: flex; align-items: center; gap: 0.55rem;
+      font-family: var(--font-b); font-size: 0.7rem; font-weight: 500;
+      color: var(--summary-stat-lbl); letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .agent-routing-item .swatch {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #4fd4e8; flex-shrink: 0;
+    }
+    .agent-routing-item .name { flex: 1; min-width: 0; }
+    .agent-routing-item .count {
+      color: var(--summary-stat-val);
+      font-family: var(--font-h); font-size: 0.92rem; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Right column: presence breakdown of off-queue agents */
+    .agent-status-legend {
+      display: flex; flex-direction: column;
+      justify-content: center; gap: 0.28rem;
+      padding: 0.1rem 0.25rem;
+      min-width: 0;
     }
     .agent-legend-item {
-      display: flex; align-items: center; gap: 0.4rem;
-      font-family: var(--font-b); font-size: 0.62rem; font-weight: 500;
+      display: flex; align-items: center; gap: 0.55rem;
+      font-family: var(--font-b); font-size: 0.78rem; font-weight: 500;
       color: var(--summary-stat-lbl); letter-spacing: 0.02em;
       white-space: nowrap;
     }
     .agent-legend-item .swatch {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0;
       box-shadow: 0 0 6px currentColor;
     }
-    .agent-legend-item .name { flex: 1; min-width: 0; }
+    .agent-legend-item .name  { flex: 1; min-width: 0; }
     .agent-legend-item .count {
       color: var(--summary-stat-val);
-      font-size: 0.78rem; font-weight: 700;
+      font-family: var(--font-h); font-size: 1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
+      margin-left: 0.5rem;
     }
 
     @media (max-width: 900px) {
@@ -867,24 +872,38 @@ function allQueues() {
       <div class="sub">Live presence<br>across all agents</div>
     </div>
     <div class="agent-status-body">
-      <div class="agent-donut-col">
-        <div class="agent-donut-wrap">
-          <svg viewBox="0 0 120 120">
-            <circle class="track" cx="60" cy="60" r="48"></circle>
-            <g id="agent-donut-segs"></g>
-          </svg>
-          <div class="agent-donut-total">
-            <div class="val" id="agent-donut-val">—</div>
-            <div class="lbl">Agents</div>
-          </div>
-        </div>
-        <div class="agent-onqueue">
-          <span class="swatch" style="background:#4fd4e8;box-shadow:0 0 6px #4fd4e8"></span>
+      <!-- Middle: On-Queue pill + routing breakdown of on-queue agents -->
+      <div class="agent-status-mid">
+        <div class="agent-onqueue-pill">
+          <span class="swatch"></span>
           <span class="name">On-Queue</span>
           <span class="count" id="agent-onqueue-count">—</span>
         </div>
+        <div class="agent-routing-list">
+          <div class="agent-routing-item">
+            <span class="swatch"></span>
+            <span class="name">Idle</span>
+            <span class="count" id="agent-routing-idle">—</span>
+          </div>
+          <div class="agent-routing-item">
+            <span class="swatch"></span>
+            <span class="name">Not responding</span>
+            <span class="count" id="agent-routing-notresp">—</span>
+          </div>
+          <div class="agent-routing-item">
+            <span class="swatch"></span>
+            <span class="name">Interacting</span>
+            <span class="count" id="agent-routing-interacting">—</span>
+          </div>
+          <div class="agent-routing-item">
+            <span class="swatch"></span>
+            <span class="name">Communicating</span>
+            <span class="count" id="agent-routing-communicating">—</span>
+          </div>
+        </div>
       </div>
-      <div class="agent-legend" id="agent-legend"></div>
+      <!-- Right: presence breakdown of off-queue agents (populated by initAgentLegend) -->
+      <div class="agent-status-legend" id="agent-status-legend"></div>
     </div>
   </div>
   </div>
@@ -1052,14 +1071,17 @@ async function getAgents(queueId) {
 // `key`  = the display label (and also matched against custom org presence names
 //          like "Meal" or "Training", which share systemPresence=AWAY but have
 //          a distinct presenceDefinition.name).
+// Order matches the supervisor mockup: OK (green) → amber (off-task but in-shift)
+// → red (unavailable). The `sys` value is the Genesys systemPresence bucket;
+// the `key` is what we match custom org presences against by display name.
 const AGENT_STATUSES = [
   { key: 'Available', color: '#00e676', sys: 'AVAILABLE' },
-  { key: 'Busy',      color: '#ff4d8f', sys: 'BUSY'      },
   { key: 'Away',      color: '#ffab00', sys: 'AWAY'      },
-  { key: 'Break',     color: '#ff5555', sys: 'BREAK'     },
-  { key: 'Meal',      color: '#ff8c42', sys: 'MEAL'      },
-  { key: 'Meeting',   color: '#805ad5', sys: 'MEETING'   },
-  { key: 'Training',  color: '#4fd4e8', sys: 'TRAINING'  },
+  { key: 'Break',     color: '#ffab00', sys: 'BREAK'     },
+  { key: 'Meal',      color: '#ffab00', sys: 'MEAL'      },
+  { key: 'Training',  color: '#ffab00', sys: 'TRAINING'  },
+  { key: 'Meeting',   color: '#ff4d5a', sys: 'MEETING'   },
+  { key: 'Busy',      color: '#ff4d5a', sys: 'BUSY'      },
 ];
 
 // Classify one user into a status bucket.
@@ -1087,27 +1109,62 @@ function classifyPresence(user) {
 // Single API call against the master queue. Every Care Team agent is a
 // member of this queue (CARE_TEAM_MASTER_QUEUE_ID), so this gives a true
 // unique headcount — no need to loop & dedupe across per-channel queues.
-// Returns { total, onQueue, counts: {Available, Busy, Away, Break, Meal, Meeting, Training} }.
+//
+// No `joined=true` filter: the Genesys live-activity "active agents" view
+// returns the full roster regardless of current join state, and we want
+// numbers that line up with what supervisors see there.
+//
+// Returns:
+//   total      — every active member of the master queue
+//   onQueue    — members with systemPresence "On Queue"
+//   offQueue   — total - onQueue
+//   counts     — presence breakdown of the OFF-QUEUE agents only
+//                (Available / Away / Break / Meal / Training / Meeting / Busy)
+//   routing    — routing-status breakdown of the ON-QUEUE agents only
+//                (idle / notResponding / interacting / communicating)
 async function getCareTeamAgents() {
   const qid = CONFIG.CARE_TEAM_MASTER_QUEUE_ID;
-  const counts = Object.fromEntries(AGENT_STATUSES.map(s => [s.key, 0]));
+  const counts  = Object.fromEntries(AGENT_STATUSES.map(s => [s.key, 0]));
+  const routing = { idle: 0, notResponding: 0, interacting: 0, communicating: 0 };
   let total = 0, onQueue = 0;
+
   try {
-    const d = await api(`/api/v2/routing/queues/${qid}/members?pageSize=200&joined=true&expand=presence,routingStatus`);
+    const d = await api(`/api/v2/routing/queues/${qid}/members?pageSize=200&expand=presence&expand=routingStatus`);
     for (const ent of (d.entities || [])) {
       const u = ent.user; if (!u) continue;
       total++;
-      const bucket = classifyPresence(u);
-      if (bucket) counts[bucket]++;
-      // Consistent definition everywhere: On-Queue === systemPresence "On Queue".
+
+      // systemPresence "On Queue" is the single source of truth for on-queue state.
       const sysP = u.presence && u.presence.presenceDefinition && u.presence.presenceDefinition.systemPresence;
-      if (String(sysP || '').toLowerCase() === 'on queue') onQueue++;
+      const isOnQueue = String(sysP || '').toLowerCase() === 'on queue';
+
+      if (isOnQueue) {
+        onQueue++;
+        // Route on-queue agents into routing buckets. The routingStatus object
+        // can live either on the Member entity or nested on the user — try both.
+        const rs = String(
+          (ent.routingStatus && ent.routingStatus.status) ||
+          (u.routingStatus   && u.routingStatus.status)   || ''
+        ).toUpperCase();
+        switch (rs) {
+          case 'IDLE':          routing.idle++;          break;
+          case 'NOT_RESPONDING':routing.notResponding++; break;
+          case 'INTERACTING':   routing.interacting++;   break;
+          case 'COMMUNICATING': routing.communicating++; break;
+          // OFF_QUEUE / unknown: do not bucket
+        }
+      } else {
+        // Off-queue agents feed the right-side presence legend only.
+        const bucket = classifyPresence(u);
+        if (bucket) counts[bucket]++;
+      }
     }
   } catch (e) {
     console.warn('[agents] master-queue fetch failed:', e.message);
     return null;
   }
-  return { total, onQueue, counts };
+
+  return { total, onQueue, offQueue: total - onQueue, counts, routing };
 }
 
 // ── HELPERS ──
@@ -1585,7 +1642,7 @@ function updateCardAgg(key, agg, isVoice) {
 
 // ── AGENT STATUS RENDER ──
 function initAgentLegend() {
-  const leg = document.getElementById('agent-legend');
+  const leg = document.getElementById('agent-status-legend');
   if (!leg || leg.childElementCount) return;
   leg.innerHTML = AGENT_STATUSES.map(s => `
     <div class="agent-legend-item">
@@ -1596,52 +1653,33 @@ function initAgentLegend() {
   `).join('');
 }
 
-function renderAgentDonut(data) {
+function _setCount(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const s = String(val);
+  if (el.textContent === s) return;
+  el.textContent = s;
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
+function renderAgentStatus(data) {
   initAgentLegend();
   if (!data) return; // leave last values on-screen if a single fetch failed
-  const { counts, total, onQueue } = data;
+  const { counts, onQueue, routing } = data;
 
-  // Center total
-  const totalEl = document.getElementById('agent-donut-val');
-  if (totalEl && totalEl.textContent !== String(total)) {
-    totalEl.textContent = total;
-    totalEl.classList.remove('flash'); void totalEl.offsetWidth; totalEl.classList.add('flash');
-  }
+  // On-Queue pill (big count)
+  _setCount('agent-onqueue-count', onQueue);
 
-  // On-Queue pill
-  const oqEl = document.getElementById('agent-onqueue-count');
-  if (oqEl && oqEl.textContent !== String(onQueue)) {
-    oqEl.textContent = onQueue;
-    oqEl.classList.remove('flash'); void oqEl.offsetWidth; oqEl.classList.add('flash');
-  }
+  // Routing breakdown (on-queue sub-states)
+  _setCount('agent-routing-idle',          routing?.idle          || 0);
+  _setCount('agent-routing-notresp',       routing?.notResponding || 0);
+  _setCount('agent-routing-interacting',   routing?.interacting   || 0);
+  _setCount('agent-routing-communicating', routing?.communicating || 0);
 
-  // Legend counts
+  // Legend counts (off-queue presence breakdown)
   AGENT_STATUSES.forEach(s => {
-    const el = document.getElementById('agent-count-' + s.key);
-    if (el) {
-      const v = counts[s.key] || 0;
-      if (el.textContent !== String(v)) {
-        el.textContent = v;
-        el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-      }
-    }
+    _setCount('agent-count-' + s.key, counts[s.key] || 0);
   });
-
-  // Donut segments (proportional to counts; guard for total=0)
-  const segs = document.getElementById('agent-donut-segs');
-  if (!segs) return;
-  const C = 2 * Math.PI * 48; // circumference for r=48
-  if (total <= 0) { segs.innerHTML = ''; return; }
-  let offset = 0;
-  const parts = [];
-  AGENT_STATUSES.forEach(s => {
-    const n = counts[s.key] || 0;
-    if (n <= 0) return;
-    const len = (n / total) * C;
-    parts.push(`<circle class="seg" cx="60" cy="60" r="48" stroke="${s.color}" style="color:${s.color}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`);
-    offset += len;
-  });
-  segs.innerHTML = parts.join('');
 }
 
 // Wrap poll() so the master-queue fetch runs in parallel with the existing
@@ -1651,7 +1689,7 @@ const _origPoll = poll;
 poll = async function() {
   const main = _origPoll();
   const agents = getCareTeamAgents()
-    .then(renderAgentDonut)
+    .then(renderAgentStatus)
     .catch(e => console.warn('[agents] render failed', e));
   await Promise.all([main, agents]);
 };
