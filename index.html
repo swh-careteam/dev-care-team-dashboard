@@ -627,11 +627,13 @@
       font-family: var(--font-b); font-size: 0.8rem; font-weight: 500;
       color: var(--summary-stat-lbl); letter-spacing: 0.02em;
     }
-    /* Off-Queue section: two equal halves, each packed to its own start */
+    /* Off-Queue section: two content-width sub-columns, centered as a block
+       under the Off-Queue pill. */
     .agent-offqueue-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      column-gap: 0.75rem;
+      grid-template-columns: auto auto;
+      justify-content: center;
+      column-gap: 1.75rem;
       row-gap: 0;
       align-items: start;
     }
