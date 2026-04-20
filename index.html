@@ -561,22 +561,29 @@
       color: var(--summary-sub); text-align: center; line-height: 1.4;
     }
     .agent-status-body {
-      display: flex; flex-direction: column;
-      justify-content: center;
-      gap: 0.7rem;
-      padding: 0.7rem 0.9rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr);
+      align-items: stretch;
       flex: 1; min-width: 0;
       background: var(--summary-ch-bg);
     }
-
-    /* Top row: On-Queue + Off-Queue pills side-by-side */
-    .agent-status-pills {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 0.7rem;
+    .agent-status-section {
+      display: flex; flex-direction: column;
+      justify-content: center;
+      gap: 0.55rem;
+      padding: 0.75rem 0.9rem;
+      min-width: 0;
     }
+    .agent-status-section.onqueue-section {
+      border-right: 1px solid var(--summary-stat-sep);
+    }
+
+    /* Pills (On-Queue / Off-Queue totals) */
     .agent-pill {
-      display: flex; align-items: center; gap: 0.55rem;
-      padding: 0.38rem 0.85rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center; gap: 0.55rem;
+      padding: 0.36rem 0.85rem;
       border-radius: 999px;
       border: 1px solid var(--summary-lbl-bdr);
       background: var(--summary-lbl-bg);
@@ -595,7 +602,7 @@
     .agent-pill.offqueue .swatch {
       background: #ff4d5a; box-shadow: 0 0 8px rgba(255,77,90,0.8);
     }
-    .agent-pill .name  { flex: 1; min-width: 0; }
+    .agent-pill .name  { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .agent-pill .count {
       color: var(--summary-stat-val);
       font-family: var(--font-h); font-size: 1.15rem; font-weight: 700;
@@ -603,39 +610,40 @@
       margin-left: 0.4rem;
     }
 
-    /* Bottom: 3 columns of presence stats (on-queue routing + off-queue split) */
-    .agent-status-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.25rem 1.1rem;
-      padding: 0 0.15rem;
-    }
-    .agent-status-col {
+    /* Stat columns under each pill */
+    .agent-stats-col {
       display: flex; flex-direction: column;
-      justify-content: center;
-      gap: 0.32rem;
+      gap: 0.3rem;
       min-width: 0;
     }
+    /* Off-Queue section: split presence stats into 2 columns */
+    .agent-offqueue-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0.3rem 1.1rem;
+    }
     .agent-stat-item {
-      display: flex; align-items: center; gap: 0.55rem;
-      font-family: var(--font-b); font-size: 0.78rem; font-weight: 500;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center; gap: 0.5rem;
+      font-family: var(--font-b); font-size: 0.72rem; font-weight: 500;
       color: var(--summary-stat-lbl); letter-spacing: 0.02em;
       white-space: nowrap; min-width: 0;
     }
     .agent-stat-item .swatch {
-      width: 10px; height: 10px; border-radius: 50%;
+      width: 9px; height: 9px; border-radius: 50%;
       flex-shrink: 0;
       box-shadow: 0 0 6px currentColor;
     }
     .agent-stat-item.onqueue-sub .swatch {
       background: #4fd4e8; color: #4fd4e8;
     }
-    .agent-stat-item .name  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .agent-stat-item .name  { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .agent-stat-item .count {
       color: var(--summary-stat-val);
-      font-family: var(--font-h); font-size: 1rem; font-weight: 700;
+      font-family: var(--font-h); font-size: 0.9rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
-      margin-left: 0.4rem;
+      margin-left: 0.35rem;
     }
 
     @media (max-width: 900px) {
@@ -864,23 +872,14 @@ function allQueues() {
       <div class="sub">Live presence<br>across all agents</div>
     </div>
     <div class="agent-status-body">
-      <!-- Top: On-Queue + Off-Queue summary pills -->
-      <div class="agent-status-pills">
+      <!-- On-Queue section: pill + on-queue routing breakdown -->
+      <div class="agent-status-section onqueue-section">
         <div class="agent-pill onqueue">
           <span class="swatch"></span>
           <span class="name">On-Queue</span>
           <span class="count" id="agent-onqueue-count">—</span>
         </div>
-        <div class="agent-pill offqueue">
-          <span class="swatch"></span>
-          <span class="name">Off-Queue</span>
-          <span class="count" id="agent-offqueue-count">—</span>
-        </div>
-      </div>
-      <!-- Bottom: 3-col grid (on-queue routing | off-queue presence split) -->
-      <div class="agent-status-grid">
-        <!-- Col 1: on-queue routing states -->
-        <div class="agent-status-col">
+        <div class="agent-stats-col">
           <div class="agent-stat-item onqueue-sub">
             <span class="swatch"></span>
             <span class="name">Idle</span>
@@ -902,9 +901,18 @@ function allQueues() {
             <span class="count" id="agent-routing-communicating">—</span>
           </div>
         </div>
-        <!-- Col 2 + Col 3: off-queue presence legend (populated by initAgentLegend) -->
-        <div class="agent-status-col" id="agent-legend-col-a"></div>
-        <div class="agent-status-col" id="agent-legend-col-b"></div>
+      </div>
+      <!-- Off-Queue section: pill + 2-col presence grid (populated by initAgentLegend) -->
+      <div class="agent-status-section offqueue-section">
+        <div class="agent-pill offqueue">
+          <span class="swatch"></span>
+          <span class="name">Off-Queue</span>
+          <span class="count" id="agent-offqueue-count">—</span>
+        </div>
+        <div class="agent-offqueue-grid">
+          <div class="agent-stats-col" id="agent-legend-col-a"></div>
+          <div class="agent-stats-col" id="agent-legend-col-b"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1119,7 +1127,8 @@ function classifyPresence(user) {
 // Returns:
 //   total      — every active member of the master queue
 //   onQueue    — members with systemPresence "On Queue"
-//   offQueue   — total - onQueue
+//   offQueue   — sum of the counts buckets (matches what the legend shows,
+//                so the pill and the rows below always reconcile)
 //   counts     — presence breakdown of the OFF-QUEUE agents only
 //                (Available / Away / Break / Meal / Training / Meeting / Busy)
 //   routing    — routing-status breakdown of the ON-QUEUE agents only
@@ -1166,7 +1175,11 @@ async function getCareTeamAgents() {
     return null;
   }
 
-  return { total, onQueue, offQueue: total - onQueue, counts, routing };
+  // Off-Queue pill = sum of the shown presence buckets so it always matches
+  // the rows below. Agents with an uncategorized presence (Offline, custom
+  // statuses not in AGENT_STATUSES, etc.) are intentionally excluded here.
+  const offQueue = Object.values(counts).reduce((a, b) => a + b, 0);
+  return { total, onQueue, offQueue, counts, routing };
 }
 
 // ── HELPERS ──
