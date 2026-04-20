@@ -485,8 +485,8 @@
     /* ── STATS ── */
     .summary-stats {
       display: grid; grid-template-columns: repeat(4, 1fr);
-      flex: 1; align-items: end;
-      padding: 0 0.3rem 0.45rem;
+      flex: 1; align-items: center;
+      padding: 0.35rem 0.3rem;
     }
     .summary-stats.cols3 { grid-template-columns: repeat(3, 1fr); }
     .summary-stat {
@@ -545,105 +545,97 @@
     }
     .agent-status-label {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      width: clamp(90px,9vw,130px); min-width: clamp(90px,9vw,130px);
+      width: clamp(76px,7vw,110px); min-width: clamp(76px,7vw,110px);
       background: var(--summary-lbl-bg);
       border-right: 1px solid var(--summary-lbl-bdr);
-      padding: 0.9rem 0.6rem; flex-shrink: 0; gap: 0.45rem;
+      padding: 0.9rem 0.5rem; flex-shrink: 0; gap: 0.45rem;
     }
     .agent-status-label .title {
-      font-family: var(--font-h); font-size: 0.88rem; font-weight: 700;
+      font-family: var(--font-h); font-size: 0.82rem; font-weight: 700;
       letter-spacing: 0.12em; text-transform: uppercase; color: var(--summary-title);
       text-shadow: var(--summary-tshadow);
       text-align: center; line-height: 1.2;
     }
     .agent-status-label .sub {
-      font-family: var(--font-b); font-size: 0.48rem; font-weight: 500;
+      font-family: var(--font-b); font-size: 0.46rem; font-weight: 500;
       color: var(--summary-sub); text-align: center; line-height: 1.4;
     }
     .agent-status-body {
-      display: grid;
-      grid-template-columns: minmax(160px, 0.9fr) 1fr;
-      align-items: stretch;
-      gap: 0.85rem;
-      padding: 0.65rem 0.85rem;
+      display: flex; flex-direction: column;
+      justify-content: center;
+      gap: 0.7rem;
+      padding: 0.7rem 0.9rem;
       flex: 1; min-width: 0;
       background: var(--summary-ch-bg);
     }
 
-    /* Middle column: On-Queue pill + routing-status breakdown */
-    .agent-status-mid {
-      display: flex; flex-direction: column; gap: 0.55rem;
-      justify-content: center;
-      padding-right: 0.85rem;
-      border-right: 1px solid var(--summary-stat-sep);
-      min-width: 0;
+    /* Top row: On-Queue + Off-Queue pills side-by-side */
+    .agent-status-pills {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.7rem;
     }
-    .agent-onqueue-pill {
-      display: flex; align-items: center; gap: 0.5rem;
-      padding: 0.3rem 0.7rem;
-      border-radius: 22px;
+    .agent-pill {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.38rem 0.85rem;
+      border-radius: 999px;
       border: 1px solid var(--summary-lbl-bdr);
       background: var(--summary-lbl-bg);
-      font-family: var(--font-h); font-size: 0.78rem; font-weight: 600;
-      color: var(--summary-stat-lbl); letter-spacing: 0.05em;
+      font-family: var(--font-h); font-size: 0.78rem; font-weight: 700;
+      color: var(--summary-stat-lbl); letter-spacing: 0.08em;
       text-transform: uppercase; white-space: nowrap;
-    }
-    .agent-onqueue-pill .swatch {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #4fd4e8; box-shadow: 0 0 8px rgba(79,212,232,0.8);
-      flex-shrink: 0;
-    }
-    .agent-onqueue-pill .name  { color: var(--summary-stat-lbl); flex: 1; }
-    .agent-onqueue-pill .count {
-      color: var(--summary-stat-val);
-      font-size: 1.1rem; font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-    .agent-routing-list {
-      display: flex; flex-direction: column; gap: 0.28rem;
-      padding: 0.1rem 0.3rem 0;
-    }
-    .agent-routing-item {
-      display: flex; align-items: center; gap: 0.55rem;
-      font-family: var(--font-b); font-size: 0.7rem; font-weight: 500;
-      color: var(--summary-stat-lbl); letter-spacing: 0.02em;
-      white-space: nowrap;
-    }
-    .agent-routing-item .swatch {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #4fd4e8; flex-shrink: 0;
-    }
-    .agent-routing-item .name { flex: 1; min-width: 0; }
-    .agent-routing-item .count {
-      color: var(--summary-stat-val);
-      font-family: var(--font-h); font-size: 0.92rem; font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Right column: presence breakdown of off-queue agents */
-    .agent-status-legend {
-      display: flex; flex-direction: column;
-      justify-content: center; gap: 0.28rem;
-      padding: 0.1rem 0.25rem;
       min-width: 0;
     }
-    .agent-legend-item {
+    .agent-pill .swatch {
+      width: 12px; height: 12px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .agent-pill.onqueue  .swatch {
+      background: #4fd4e8; box-shadow: 0 0 8px rgba(79,212,232,0.8);
+    }
+    .agent-pill.offqueue .swatch {
+      background: #ff4d5a; box-shadow: 0 0 8px rgba(255,77,90,0.8);
+    }
+    .agent-pill .name  { flex: 1; min-width: 0; }
+    .agent-pill .count {
+      color: var(--summary-stat-val);
+      font-family: var(--font-h); font-size: 1.15rem; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      margin-left: 0.4rem;
+    }
+
+    /* Bottom: 3 columns of presence stats (on-queue routing + off-queue split) */
+    .agent-status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.25rem 1.1rem;
+      padding: 0 0.15rem;
+    }
+    .agent-status-col {
+      display: flex; flex-direction: column;
+      justify-content: center;
+      gap: 0.32rem;
+      min-width: 0;
+    }
+    .agent-stat-item {
       display: flex; align-items: center; gap: 0.55rem;
       font-family: var(--font-b); font-size: 0.78rem; font-weight: 500;
       color: var(--summary-stat-lbl); letter-spacing: 0.02em;
-      white-space: nowrap;
+      white-space: nowrap; min-width: 0;
     }
-    .agent-legend-item .swatch {
+    .agent-stat-item .swatch {
       width: 10px; height: 10px; border-radius: 50%;
       flex-shrink: 0;
       box-shadow: 0 0 6px currentColor;
     }
-    .agent-legend-item .name  { flex: 1; min-width: 0; }
-    .agent-legend-item .count {
+    .agent-stat-item.onqueue-sub .swatch {
+      background: #4fd4e8; color: #4fd4e8;
+    }
+    .agent-stat-item .name  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .agent-stat-item .count {
       color: var(--summary-stat-val);
       font-family: var(--font-h); font-size: 1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
-      margin-left: 0.5rem;
+      margin-left: 0.4rem;
     }
 
     @media (max-width: 900px) {
@@ -872,38 +864,48 @@ function allQueues() {
       <div class="sub">Live presence<br>across all agents</div>
     </div>
     <div class="agent-status-body">
-      <!-- Middle: On-Queue pill + routing breakdown of on-queue agents -->
-      <div class="agent-status-mid">
-        <div class="agent-onqueue-pill">
+      <!-- Top: On-Queue + Off-Queue summary pills -->
+      <div class="agent-status-pills">
+        <div class="agent-pill onqueue">
           <span class="swatch"></span>
           <span class="name">On-Queue</span>
           <span class="count" id="agent-onqueue-count">—</span>
         </div>
-        <div class="agent-routing-list">
-          <div class="agent-routing-item">
+        <div class="agent-pill offqueue">
+          <span class="swatch"></span>
+          <span class="name">Off-Queue</span>
+          <span class="count" id="agent-offqueue-count">—</span>
+        </div>
+      </div>
+      <!-- Bottom: 3-col grid (on-queue routing | off-queue presence split) -->
+      <div class="agent-status-grid">
+        <!-- Col 1: on-queue routing states -->
+        <div class="agent-status-col">
+          <div class="agent-stat-item onqueue-sub">
             <span class="swatch"></span>
             <span class="name">Idle</span>
             <span class="count" id="agent-routing-idle">—</span>
           </div>
-          <div class="agent-routing-item">
+          <div class="agent-stat-item onqueue-sub">
             <span class="swatch"></span>
             <span class="name">Not responding</span>
             <span class="count" id="agent-routing-notresp">—</span>
           </div>
-          <div class="agent-routing-item">
+          <div class="agent-stat-item onqueue-sub">
             <span class="swatch"></span>
             <span class="name">Interacting</span>
             <span class="count" id="agent-routing-interacting">—</span>
           </div>
-          <div class="agent-routing-item">
+          <div class="agent-stat-item onqueue-sub">
             <span class="swatch"></span>
             <span class="name">Communicating</span>
             <span class="count" id="agent-routing-communicating">—</span>
           </div>
         </div>
+        <!-- Col 2 + Col 3: off-queue presence legend (populated by initAgentLegend) -->
+        <div class="agent-status-col" id="agent-legend-col-a"></div>
+        <div class="agent-status-col" id="agent-legend-col-b"></div>
       </div>
-      <!-- Right: presence breakdown of off-queue agents (populated by initAgentLegend) -->
-      <div class="agent-status-legend" id="agent-status-legend"></div>
     </div>
   </div>
   </div>
@@ -1641,16 +1643,32 @@ function updateCardAgg(key, agg, isVoice) {
 }
 
 // ── AGENT STATUS RENDER ──
+// Off-queue presence legend is split across two columns:
+//   col A: Available, Away, Break, Meal
+//   col B: Training, Meeting, Busy
 function initAgentLegend() {
-  const leg = document.getElementById('agent-status-legend');
-  if (!leg || leg.childElementCount) return;
-  leg.innerHTML = AGENT_STATUSES.map(s => `
-    <div class="agent-legend-item">
-      <span class="swatch" style="background:${s.color};color:${s.color}"></span>
-      <span class="name">${s.key}</span>
-      <span class="count" id="agent-count-${s.key}">—</span>
-    </div>
-  `).join('');
+  const colA = document.getElementById('agent-legend-col-a');
+  const colB = document.getElementById('agent-legend-col-b');
+  if (!colA || !colB) return;
+  if (colA.childElementCount && colB.childElementCount) return;
+
+  const keysA = ['Available', 'Away', 'Break', 'Meal'];
+  const keysB = ['Training', 'Meeting', 'Busy'];
+  const byKey = Object.fromEntries(AGENT_STATUSES.map(s => [s.key, s]));
+
+  const renderItems = keys => keys
+    .map(k => byKey[k])
+    .filter(Boolean)
+    .map(s => `
+      <div class="agent-stat-item">
+        <span class="swatch" style="background:${s.color};color:${s.color}"></span>
+        <span class="name">${s.key}</span>
+        <span class="count" id="agent-count-${s.key}">—</span>
+      </div>
+    `).join('');
+
+  colA.innerHTML = renderItems(keysA);
+  colB.innerHTML = renderItems(keysB);
 }
 
 function _setCount(id, val) {
@@ -1665,10 +1683,11 @@ function _setCount(id, val) {
 function renderAgentStatus(data) {
   initAgentLegend();
   if (!data) return; // leave last values on-screen if a single fetch failed
-  const { counts, onQueue, routing } = data;
+  const { counts, onQueue, offQueue, routing } = data;
 
-  // On-Queue pill (big count)
-  _setCount('agent-onqueue-count', onQueue);
+  // Pills (totals)
+  _setCount('agent-onqueue-count',  onQueue);
+  _setCount('agent-offqueue-count', offQueue);
 
   // Routing breakdown (on-queue sub-states)
   _setCount('agent-routing-idle',          routing?.idle          || 0);
