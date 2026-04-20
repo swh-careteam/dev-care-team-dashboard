@@ -610,39 +610,46 @@
       margin-left: 0.4rem;
     }
 
-    /* Stat columns under each pill */
+    /* Stat columns under each pill.
+       The column itself is a 3-track grid (swatch | name | count) and each
+       .agent-stat-item is `display: contents`, so tracks size to the widest
+       name in the column. That pulls the count tight to each label while
+       still keeping counts aligned vertically within the column. */
     .agent-stats-col {
-      display: flex; flex-direction: column;
-      gap: 0.3rem;
+      display: grid;
+      grid-template-columns: auto auto auto;
+      justify-content: start;
+      align-content: center;
+      row-gap: 0.32rem;
+      column-gap: 0.55rem;
       min-width: 0;
+      font-family: var(--font-b); font-size: 0.72rem; font-weight: 500;
+      color: var(--summary-stat-lbl); letter-spacing: 0.02em;
     }
     /* Off-Queue section: split presence stats into 2 columns */
     .agent-offqueue-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 0.3rem 1.1rem;
+      grid-template-columns: auto auto;
+      justify-content: start;
+      gap: 0.3rem 1.4rem;
     }
-    .agent-stat-item {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center; gap: 0.5rem;
-      font-family: var(--font-b); font-size: 0.72rem; font-weight: 500;
-      color: var(--summary-stat-lbl); letter-spacing: 0.02em;
-      white-space: nowrap; min-width: 0;
-    }
-    .agent-stat-item .swatch {
+    .agent-stat-item { display: contents; }
+    .agent-stats-col .swatch {
       width: 9px; height: 9px; border-radius: 50%;
-      flex-shrink: 0;
+      align-self: center;
       box-shadow: 0 0 6px currentColor;
     }
     .agent-stat-item.onqueue-sub .swatch {
       background: #4fd4e8; color: #4fd4e8;
     }
-    .agent-stat-item .name  { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .agent-stat-item .count {
+    .agent-stats-col .name  {
+      white-space: nowrap; align-self: center;
+    }
+    .agent-stats-col .count {
       color: var(--summary-stat-val);
       font-family: var(--font-h); font-size: 0.9rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
+      justify-self: end; align-self: center;
       margin-left: 0.35rem;
     }
 
