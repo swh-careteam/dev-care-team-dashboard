@@ -91,6 +91,16 @@
       --pill-err-c:#ff5555; --pill-err-b:rgba(255,85,85,0.45); --pill-err-bg:rgba(255,85,85,0.07);
       --font-h: 'Rajdhani', sans-serif;
       --font-b: 'Exo 2', sans-serif;
+
+      /* Agent Status swatch palette (dark theme: neon, with glow) */
+      --swatch-onqueue:       #4fd4e8;
+      --swatch-onqueue-glow:  0 0 8px rgba(79,212,232,0.8);
+      --swatch-offqueue:      #ff4d5a;
+      --swatch-offqueue-glow: 0 0 8px rgba(255,77,90,0.8);
+      --swatch-available:     #00e676;
+      --swatch-warn:          #ffab00;
+      --swatch-crit:          #ff4d5a;
+      --swatch-glow:          0 0 6px currentColor;
     }
 
     /* ── LIGHT THEME ── */
@@ -176,6 +186,16 @@
       --pill-live-c:#0a9e5c; --pill-live-b:rgba(10,158,92,0.45); --pill-live-bg:rgba(10,158,92,0.08); --pill-live-s:0 0 16px rgba(10,158,92,0.15);
       --pill-off-b: rgba(37,99,235,0.2);
       --pill-err-c:#dc2626; --pill-err-b:rgba(220,38,38,0.45); --pill-err-bg:rgba(220,38,38,0.07);
+
+      /* Agent Status swatch palette (light theme: subdued, no glow) */
+      --swatch-onqueue:       #0891b2;
+      --swatch-onqueue-glow:  none;
+      --swatch-offqueue:      #b91c1c;
+      --swatch-offqueue-glow: none;
+      --swatch-available:     #0a8f52;
+      --swatch-warn:          #b07209;
+      --swatch-crit:          #b91c1c;
+      --swatch-glow:          none;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
@@ -597,10 +617,12 @@
       flex-shrink: 0;
     }
     .agent-pill.onqueue  .swatch {
-      background: #4fd4e8; box-shadow: 0 0 8px rgba(79,212,232,0.8);
+      background: var(--swatch-onqueue);
+      box-shadow: var(--swatch-onqueue-glow);
     }
     .agent-pill.offqueue .swatch {
-      background: #ff4d5a; box-shadow: 0 0 8px rgba(255,77,90,0.8);
+      background: var(--swatch-offqueue);
+      box-shadow: var(--swatch-offqueue-glow);
     }
     .agent-pill .name  { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .agent-pill .count {
@@ -641,10 +663,10 @@
     .agent-stats-col .swatch {
       width: 10px; height: 10px; border-radius: 50%;
       align-self: center;
-      box-shadow: 0 0 6px currentColor;
+      box-shadow: var(--swatch-glow);
     }
     .agent-stat-item.onqueue-sub .swatch {
-      background: #4fd4e8; color: #4fd4e8;
+      background: var(--swatch-onqueue); color: var(--swatch-onqueue);
     }
     .agent-stats-col .name  {
       white-space: nowrap; align-self: center;
@@ -1095,14 +1117,16 @@ async function getAgents(queueId) {
 // Order matches the supervisor mockup: OK (green) → amber (off-task but in-shift)
 // → red (unavailable). The `sys` value is the Genesys systemPresence bucket;
 // the `key` is what we match custom org presences against by display name.
+// Theme-aware swatch colors: hex values come from CSS vars (dark = neon,
+// light = subdued). Using var() keeps the JS output theme-agnostic.
 const AGENT_STATUSES = [
-  { key: 'Available', color: '#00e676', sys: 'AVAILABLE' },
-  { key: 'Away',      color: '#ffab00', sys: 'AWAY'      },
-  { key: 'Break',     color: '#ffab00', sys: 'BREAK'     },
-  { key: 'Meal',      color: '#ffab00', sys: 'MEAL'      },
-  { key: 'Training',  color: '#ffab00', sys: 'TRAINING'  },
-  { key: 'Meeting',   color: '#ff4d5a', sys: 'MEETING'   },
-  { key: 'Busy',      color: '#ff4d5a', sys: 'BUSY'      },
+  { key: 'Available', color: 'var(--swatch-available)', sys: 'AVAILABLE' },
+  { key: 'Away',      color: 'var(--swatch-warn)',      sys: 'AWAY'      },
+  { key: 'Break',     color: 'var(--swatch-warn)',      sys: 'BREAK'     },
+  { key: 'Meal',      color: 'var(--swatch-warn)',      sys: 'MEAL'      },
+  { key: 'Training',  color: 'var(--swatch-warn)',      sys: 'TRAINING'  },
+  { key: 'Meeting',   color: 'var(--swatch-crit)',      sys: 'MEETING'   },
+  { key: 'Busy',      color: 'var(--swatch-crit)',      sys: 'BUSY'      },
 ];
 
 // Classify one user into a status bucket.
