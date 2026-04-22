@@ -741,33 +741,37 @@ const CONFIG = {
     {
       id: 1, label: 'POD 1', color: '#e53e3e',
       queues: [
-        { id: '8aa2fa79-0bdb-4b2e-86f2-adce402a620c', label: 'Voice Queue' },
-        { id: '4879c768-5ed5-4949-aff1-ccbb0e3dad99', label: 'Chat Queue'  },
-        { id: '0187e19e-f563-441e-ad62-2965f43de61f', label: 'Email Queue' },
+        { id: '8aa2fa79-0bdb-4b2e-86f2-adce402a620c', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: '4879c768-5ed5-4949-aff1-ccbb0e3dad99', label: 'Chat Queue',  mediaType: 'message' },
+        { id: '0187e19e-f563-441e-ad62-2965f43de61f', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
     {
       id: 2, label: 'POD 2', color: '#805ad5',
       queues: [
-        { id: '2c5b51e5-c734-4b5c-a9a1-9d8ba4492dcc', label: 'Voice Queue' },
-        { id: '250f7bde-3237-487b-8d91-88e87c41ee37', label: 'Chat Queue'  },
-        { id: '7c2f0f59-bcd2-4b3e-884f-230f35b3d77d', label: 'Email Queue' },
+        { id: '2c5b51e5-c734-4b5c-a9a1-9d8ba4492dcc', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: '250f7bde-3237-487b-8d91-88e87c41ee37', label: 'Chat Queue',  mediaType: 'message' },
+        { id: '7c2f0f59-bcd2-4b3e-884f-230f35b3d77d', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
     {
+      // POD 3 was consolidated (Apr 2026) into a single multi-channel queue
+      // "Care Team POD 3" that handles voice, chat, and email. All three tiles
+      // below point to the same queueId; the mediaType field is what splits
+      // the stats per channel in getObservations / getPerQueueAggregates.
       id: 3, label: 'POD 3', color: '#3182ce',
       queues: [
-        { id: 'c28656d5-7840-4622-aa33-365bf5281c65', label: 'Voice Queue' },
-        { id: '9d59c34a-3bb0-44d6-ab52-b609a4a42025', label: 'Chat Queue'  },
-        { id: '8718ee30-ce41-4256-b35b-2b4287f210f5', label: 'Email Queue' },
+        { id: '52890686-6b6b-4586-937a-cbc4e87a4efe', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: '52890686-6b6b-4586-937a-cbc4e87a4efe', label: 'Chat Queue',  mediaType: 'message' },
+        { id: '52890686-6b6b-4586-937a-cbc4e87a4efe', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
     {
       id: 4, label: 'POD 4', color: '#d69e2e',
       queues: [
-        { id: '9d231348-09f1-4b48-8780-607ea76d2c49', label: 'Voice Queue' },
-        { id: '24bbef42-f0e9-4636-9c7b-312fe7369337', label: 'Chat Queue'  },
-        { id: 'a80216ca-0654-4540-bfe9-bdaa6df29a15', label: 'Email Queue' },
+        { id: '9d231348-09f1-4b48-8780-607ea76d2c49', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: '24bbef42-f0e9-4636-9c7b-312fe7369337', label: 'Chat Queue',  mediaType: 'message' },
+        { id: 'a80216ca-0654-4540-bfe9-bdaa6df29a15', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
   ],
@@ -784,8 +788,32 @@ const CONFIG = {
 
 function allQueues() {
   const qs = CONFIG.PODS.flatMap(p => p.queues);
-  CONFIG.VOICE_PANELS.forEach(vp => qs.push({ id: vp.queueId, label: 'Voice Queue' }));
+  CONFIG.VOICE_PANELS.forEach(vp => qs.push({ id: vp.queueId, label: 'Voice Queue', mediaType: 'voice' }));
   return qs;
+}
+
+// Distinct queue IDs across all PODs + voice panels (for API calls that only
+// need the unique ID list, not the per-tile mediaType splits).
+function allQueueIds() {
+  return [...new Set(allQueues().map(q => q.id))];
+}
+
+// Look up a (queueId, mediaType) bucket from an observations map produced by
+// getObservations(). The map is shaped as:
+//   obs[queueId] = { voice: {...}, message: {...}, email: {...}, _any: {...} }
+// For multi-channel queues (e.g. Care Team POD 3), each mediaType returns its
+// own waiting/interacting counts. For single-channel queues the requested
+// mediaType bucket is still used; _any is a safe fallback that sums across
+// mediaTypes if the expected bucket is missing from the response.
+function obsFor(obs, queueId, mediaType) {
+  const entry = obs && obs[queueId];
+  if (!entry) return { waiting: 0, interacting: 0, longestWaitSec: 0 };
+  if (mediaType && entry[mediaType]) return entry[mediaType];
+  // Genesys reports chat channels under both 'chat' and 'message' — treat them
+  // as the same bucket.
+  if (mediaType === 'message' && entry.chat) return entry.chat;
+  if (mediaType === 'chat' && entry.message) return entry.message;
+  return entry._any || { waiting: 0, interacting: 0, longestWaitSec: 0 };
 }
 </script>
 
@@ -1021,16 +1049,18 @@ function stopAlertFlash() {
 // ── ALERT CHECK ──
 function checkAlerts(obs, agents) {
   const anyAlert = allQueues().some(q => {
-    const w=(obs[q.id]||{}).waiting||0, ag=agents[q.id]??null;
-    return w>0 && (ag===0||ag===null);
+    const w = obsFor(obs, q.id, q.mediaType).waiting || 0;
+    const ag = agents[q.id] ?? null;
+    return w > 0 && (ag === 0 || ag === null);
   });
   anyAlert ? startAlertFlash() : stopAlertFlash();
 
   // POD labels
   CONFIG.PODS.forEach(pod => {
     const alert = pod.queues.some(q => {
-      const w=(obs[q.id]||{}).waiting||0, ag=agents[q.id]??null;
-      return w>0 && (ag===0||ag===null);
+      const w = obsFor(obs, q.id, q.mediaType).waiting || 0;
+      const ag = agents[q.id] ?? null;
+      return w > 0 && (ag === 0 || ag === null);
     });
     const el = document.querySelector(`#pod-row-${pod.id} .pod-label-text`);
     if(el) alert ? el.classList.add('alerting') : el.classList.remove('alerting');
@@ -1038,8 +1068,9 @@ function checkAlerts(obs, agents) {
 
   // Voice panel titles
   CONFIG.VOICE_PANELS.forEach(vp => {
-    const w=(obs[vp.queueId]||{}).waiting||0, ag=agents[vp.queueId]??null;
-    const alert = w>0 && (ag===0||ag===null);
+    const w = obsFor(obs, vp.queueId, 'voice').waiting || 0;
+    const ag = agents[vp.queueId] ?? null;
+    const alert = w > 0 && (ag === 0 || ag === null);
     const el = document.querySelector(`#${vp.id} .voice-panel-title`);
     if(el) alert ? el.classList.add('alerting') : el.classList.remove('alerting');
   });
@@ -1073,29 +1104,55 @@ function handleExpired() {
 }
 
 // ── OBSERVATIONS ──
+// We groupBy queueId + mediaType so multi-channel queues (e.g. the
+// consolidated Care Team POD 3 queue) can report waiting/interacting counts
+// per channel. The returned map is nested:
+//   { [queueId]: { voice: {...}, message: {...}, email: {...}, _any: {...} } }
+// Single-channel queues still work — they'll just populate one mediaType
+// bucket (plus _any as a safe fallback). Use obsFor(obs, qId, mt) to read.
 async function getObservations() {
-  const ids=allQueues().map(q=>q.id);
-  const data=await api('/api/v2/analytics/queues/observations/query',{
-    method:'POST',
-    body:JSON.stringify({
-      filter:{type:'and',clauses:[{type:'or',predicates:ids.map(id=>({type:'dimension',dimension:'queueId',value:id}))}]},
-      groupBy:['queueId'],
-      metrics:['oWaiting','oInteracting','oAlerting','oLongestWaiting'],
+  const ids = allQueueIds();
+  const data = await api('/api/v2/analytics/queues/observations/query', {
+    method: 'POST',
+    body: JSON.stringify({
+      filter: { type: 'and', clauses: [{ type: 'or', predicates: ids.map(id => ({ type: 'dimension', dimension: 'queueId', value: id })) }] },
+      groupBy: ['queueId', 'mediaType'],
+      metrics: ['oWaiting', 'oInteracting', 'oAlerting', 'oLongestWaiting'],
     }),
   });
-  const map={};
-  for(const row of (data.results||[])){
-    const qId=row.group?.queueId; if(!qId) continue;
-    if(!map[qId]) map[qId]={waiting:0,interacting:0,longestWaitSec:0};
-    for(const d of (row.data||[])){
-      if(d.metric==='oLongestWaiting'){
-        const ms=d.stats?.calculatedMetricValue??0;
-        const s=ms>0?Math.round((Date.now()-ms)/1000):0;
-        if(s>map[qId].longestWaitSec) map[qId].longestWaitSec=s;
+  const map = {};
+  for (const row of (data.results || [])) {
+    const qId = row.group?.queueId;
+    let mt    = row.group?.mediaType;
+    if (!qId) continue;
+    // Genesys sometimes reports chat channels as 'chat', sometimes 'message'.
+    // Normalize both to 'message' so downstream lookups by mediaType resolve.
+    if (mt === 'chat') mt = 'message';
+    if (!mt) mt = '_any';
+    if (!map[qId]) map[qId] = {};
+    if (!map[qId][mt]) map[qId][mt] = { waiting: 0, interacting: 0, longestWaitSec: 0 };
+    const bucket = map[qId][mt];
+    for (const d of (row.data || [])) {
+      if (d.metric === 'oLongestWaiting') {
+        const ms = d.stats?.calculatedMetricValue ?? 0;
+        const s = ms > 0 ? Math.round((Date.now() - ms) / 1000) : 0;
+        if (s > bucket.longestWaitSec) bucket.longestWaitSec = s;
       }
-      if(d.metric==='oWaiting')     map[qId].waiting     +=d.stats?.count??0;
-      if(d.metric==='oInteracting') map[qId].interacting +=d.stats?.count??0;
+      if (d.metric === 'oWaiting')     bucket.waiting     += d.stats?.count ?? 0;
+      if (d.metric === 'oInteracting') bucket.interacting += d.stats?.count ?? 0;
     }
+  }
+  // Build an _any aggregate per queue so fallback lookups (missing mediaType,
+  // or callers that don't care about the split) still get the right total.
+  for (const qId of Object.keys(map)) {
+    const any = { waiting: 0, interacting: 0, longestWaitSec: 0 };
+    for (const [mt, b] of Object.entries(map[qId])) {
+      if (mt === '_any') continue;
+      any.waiting     += b.waiting;
+      any.interacting += b.interacting;
+      if (b.longestWaitSec > any.longestWaitSec) any.longestWaitSec = b.longestWaitSec;
+    }
+    map[qId]._any = any;
   }
   return map;
 }
@@ -1343,9 +1400,11 @@ function render(obs, agents) {
     }
     const queuesDiv=document.getElementById(`pod-queues-${pod.id}`);
     pod.queues.forEach(q => {
-      const o=obs[q.id]||{waiting:0,interacting:0,longestWaitSec:0};
+      const o=obsFor(obs, q.id, q.mediaType);
       const ag=agents[q.id]??null;
-      const key=`${pod.id}-${q.id}`;
+      // Card key includes mediaType so a multi-channel queue (e.g. POD 3)
+      // can render distinct Voice / Chat / Email tiles without DOM ID collision.
+      const key=`${pod.id}-${q.id}-${q.mediaType}`;
       let card=document.getElementById(`card-${key}`);
       if(!card){
         card=document.createElement('div'); card.id=`card-${key}`; card.className=`card ${cardClass(o.waiting,ag)}`;
@@ -1366,15 +1425,15 @@ function render(obs, agents) {
       ico.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.64 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-.9a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
       const title=document.createElement('div'); title.className='voice-panel-title';
       title.textContent=vp.label; hdr.appendChild(ico); hdr.appendChild(title); panel.appendChild(hdr);
-      const q={id:vp.queueId,label:'Voice Queue'};
-      const o=obs[vp.queueId]||{waiting:0,interacting:0,longestWaitSec:0};
+      const q={id:vp.queueId,label:'Voice Queue',mediaType:'voice'};
+      const o=obsFor(obs, vp.queueId, 'voice');
       const ag=agents[vp.queueId]??null;
       const key=`vp-${vp.queueId}`;
       const card=document.createElement('div'); card.id=`card-${key}`; card.className=`card ${cardClass(o.waiting,ag)}`;
       card.innerHTML=buildCard(key,q,o,ag); panel.appendChild(card);
       voicePanels.appendChild(panel);
     } else {
-      const o=obs[vp.queueId]||{waiting:0,interacting:0,longestWaitSec:0};
+      const o=obsFor(obs, vp.queueId, 'voice');
       const ag=agents[vp.queueId]??null;
       updateCard(`vp-${vp.queueId}`,o,ag);
     }
@@ -1433,14 +1492,34 @@ async function getAggregates(queueIds, mediaType) {
   localMidnight.setHours(0, 0, 0, 0);
   const interval = `${localMidnight.toISOString()}/${now.toISOString()}`;
 
+  // Filter by queueId AND mediaType. Previously mediaType was passed in but
+  // ignored, which was safe only while every queue was single-channel. Now
+  // that POD 3 is a multi-channel queue, the channel SL/offered/avg-wait
+  // totals would double-count across channels without this filter.
+  // Genesys uses 'message' for chat — accept both 'chat' and 'message' so the
+  // caller can pass either synonym.
+  const mediaValues = (mediaType === 'message' || mediaType === 'chat')
+    ? ['message', 'chat']
+    : [mediaType];
+  const filter = {
+    type: 'and',
+    clauses: [
+      {
+        type: 'or',
+        predicates: queueIds.map(id => ({ type: 'dimension', dimension: 'queueId', value: id })),
+      },
+      {
+        type: 'or',
+        predicates: mediaValues.map(mt => ({ type: 'dimension', dimension: 'mediaType', value: mt })),
+      },
+    ],
+  };
+
   const data = await api('/api/v2/analytics/conversations/aggregates/query', {
     method: 'POST',
     body: JSON.stringify({
       interval,
-      filter: {
-        type: 'or',
-        predicates: queueIds.map(id => ({ type: 'dimension', dimension: 'queueId', value: id }))
-      },
+      filter,
       groupBy: ['queueId'],
       metrics: ['nOffered', 'tAnswered', 'tAbandon', 'oServiceLevel', 'tWait'],
     }),
@@ -1472,19 +1551,21 @@ async function getAggregates(queueIds, mediaType) {
   return { nOffered, nAbandoned, tAnsweredCount, avgWaitMs, slRatio };
 }
 
-// ── PER-QUEUE AGGREGATES (today, all media types) ──
-// Single bulk call returning {queueId: {nOffered, nAbandoned}} for every queue
+// ── PER-QUEUE AGGREGATES (today, per media type) ──
+// Single bulk call returning a map keyed by `${queueId}:${mediaType}` so
+// multi-channel queues (e.g. the consolidated POD 3 queue) keep each
+// channel's nOffered/nAbandoned separate. Single-channel queues are handled
+// the same way — their key is just their one expected mediaType.
 async function getPerQueueAggregates() {
-  // Build a mediaType lookup so we only count the correct media per queue
-  const queueMediaType = {};
+  // Build the set of (queueId, mediaType) pairs we care about so we can ignore
+  // any unexpected rows Genesys may return (e.g. callback on a voice queue).
+  const expected = new Set();
   CONFIG.PODS.forEach(pod => pod.queues.forEach(q => {
-    if (q.label === 'Voice Queue') queueMediaType[q.id] = 'voice';
-    else if (q.label === 'Chat Queue')  queueMediaType[q.id] = 'message'; // Genesys uses 'message' not 'chat'
-    else if (q.label === 'Email Queue') queueMediaType[q.id] = 'email';
+    expected.add(`${q.id}:${q.mediaType}`);
   }));
-  CONFIG.VOICE_PANELS.forEach(vp => { queueMediaType[vp.queueId] = 'voice'; });
+  CONFIG.VOICE_PANELS.forEach(vp => { expected.add(`${vp.queueId}:voice`); });
 
-  const allIds = Object.keys(queueMediaType);
+  const allIds = allQueueIds();
   const now = new Date();
   const localMidnight = new Date(now); localMidnight.setHours(0,0,0,0);
   const interval = `${localMidnight.toISOString()}/${now.toISOString()}`;
@@ -1509,20 +1590,20 @@ async function getPerQueueAggregates() {
 
   const map = {};
   for (const row of (data.results || [])) {
-    const qid       = row.group?.queueId;
-    const mediaType = row.group?.mediaType;
-    if (!qid || !mediaType) continue;
-    // Only count rows whose mediaType matches what we expect for this queue
-    // Genesys uses both 'chat' and 'message' for chat channels
-    const expectedMedia = queueMediaType[qid];
-    const isChatMatch = (expectedMedia === 'message' && (mediaType === 'chat' || mediaType === 'message'));
-    if (expectedMedia && !isChatMatch && expectedMedia !== mediaType) continue;
-    if (!map[qid]) map[qid] = { nOffered: 0, nAbandoned: 0 };
+    const qid = row.group?.queueId;
+    let mt    = row.group?.mediaType;
+    if (!qid || !mt) continue;
+    // Normalize Genesys' 'chat' alias to 'message' so it matches how tiles
+    // declare themselves in CONFIG.
+    if (mt === 'chat') mt = 'message';
+    const compositeKey = `${qid}:${mt}`;
+    if (!expected.has(compositeKey)) continue;
+    if (!map[compositeKey]) map[compositeKey] = { nOffered: 0, nAbandoned: 0 };
     for (const d of (row.data || [])) {
       for (const m of (d.metrics || [])) {
         const s = m.stats || {};
-        if (m.metric === 'nOffered') map[qid].nOffered  += s.count ?? 0;
-        if (m.metric === 'tAbandon') map[qid].nAbandoned += s.count ?? 0;
+        if (m.metric === 'nOffered') map[compositeKey].nOffered  += s.count ?? 0;
+        if (m.metric === 'tAbandon') map[compositeKey].nAbandoned += s.count ?? 0;
       }
     }
   }
@@ -1562,9 +1643,12 @@ function updateSummaryBand(channel, obs, agentMap, aggData) {
   // now shows a single accurate unique On-Queue count pulled from the master
   // queue (CARE_TEAM_MASTER_QUEUE_ID), which avoids double-counting agents
   // joined to multiple queues.
+  // Read waiting per-channel via obsFor(). If POD 3's queueId appears in
+  // multiple SUMMARY_CHANNELS lists (because it's multi-channel), each
+  // channel's summary still only counts its own mediaType bucket.
   let totalWaiting = 0;
   for (const qid of cfg.queueIds) {
-    totalWaiting += (obs[qid]||{}).waiting || 0;
+    totalWaiting += obsFor(obs, qid, cfg.mediaType).waiting || 0;
   }
   const sl = calcSL(aggData);
   const slPct = sl !== null ? sl : null;
@@ -1650,21 +1734,23 @@ async function pollSummaryBand(obs, agentMap) {
   }
 }
 
-// Push per-queue offered/abandoned into all rendered cards
+// Push per-queue offered/abandoned into all rendered cards.
+// perQueueAgg is keyed by `${queueId}:${mediaType}` so POD 3's three tiles
+// (voice/chat/email all pointing at the same queueId) each get their own row.
 function applyPerQueueAgg() {
   // POD queues
   CONFIG.PODS.forEach(pod => {
     pod.queues.forEach(q => {
-      const key = `${pod.id}-${q.id}`;
-      const agg = perQueueAgg[q.id] || { nOffered: 0, nAbandoned: 0 };
-      const isVoice = q.label === 'Voice Queue';
+      const key = `${pod.id}-${q.id}-${q.mediaType}`;
+      const agg = perQueueAgg[`${q.id}:${q.mediaType}`] || { nOffered: 0, nAbandoned: 0 };
+      const isVoice = q.mediaType === 'voice';
       updateCardAgg(key, agg, isVoice);
     });
   });
   // Voice panels
   CONFIG.VOICE_PANELS.forEach(vp => {
     const key = `vp-${vp.queueId}`;
-    const agg = perQueueAgg[vp.queueId] || { nOffered: 0, nAbandoned: 0 };
+    const agg = perQueueAgg[`${vp.queueId}:voice`] || { nOffered: 0, nAbandoned: 0 };
     updateCardAgg(key, agg, true);
   });
 }
