@@ -739,19 +739,25 @@ const CONFIG = {
   CARE_TEAM_MASTER_QUEUE_ID: '74bf3555-3c02-442d-9141-2a91b8d169aa',
   PODS: [
     {
+      // POD 1 consolidated (Apr 2026) into a single multi-channel queue
+      // "Care Team POD 1". All three tiles share one queueId; mediaType
+      // splits the stats per channel.
       id: 1, label: 'POD 1', color: '#e53e3e',
       queues: [
-        { id: '8aa2fa79-0bdb-4b2e-86f2-adce402a620c', label: 'Voice Queue', mediaType: 'voice'   },
-        { id: '4879c768-5ed5-4949-aff1-ccbb0e3dad99', label: 'Chat Queue',  mediaType: 'message' },
-        { id: '0187e19e-f563-441e-ad62-2965f43de61f', label: 'Email Queue', mediaType: 'email'   },
+        { id: 'c01e2bd4-ff52-452f-b4aa-949e1501dd6b', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: 'c01e2bd4-ff52-452f-b4aa-949e1501dd6b', label: 'Chat Queue',  mediaType: 'message' },
+        { id: 'c01e2bd4-ff52-452f-b4aa-949e1501dd6b', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
     {
+      // POD 2 consolidated (Apr 2026) into a single multi-channel queue
+      // "Care Team POD 2". All three tiles share one queueId; mediaType
+      // splits the stats per channel.
       id: 2, label: 'POD 2', color: '#805ad5',
       queues: [
-        { id: '2c5b51e5-c734-4b5c-a9a1-9d8ba4492dcc', label: 'Voice Queue', mediaType: 'voice'   },
-        { id: '250f7bde-3237-487b-8d91-88e87c41ee37', label: 'Chat Queue',  mediaType: 'message' },
-        { id: '7c2f0f59-bcd2-4b3e-884f-230f35b3d77d', label: 'Email Queue', mediaType: 'email'   },
+        { id: 'fe8c24e5-83d0-436c-bd03-462d2e0d0f53', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: 'fe8c24e5-83d0-436c-bd03-462d2e0d0f53', label: 'Chat Queue',  mediaType: 'message' },
+        { id: 'fe8c24e5-83d0-436c-bd03-462d2e0d0f53', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
     {
@@ -767,11 +773,14 @@ const CONFIG = {
       ],
     },
     {
+      // POD 4 consolidated (Apr 2026) into a single multi-channel queue
+      // "Care Team POD 4". All three tiles share one queueId; mediaType
+      // splits the stats per channel.
       id: 4, label: 'POD 4', color: '#d69e2e',
       queues: [
-        { id: '9d231348-09f1-4b48-8780-607ea76d2c49', label: 'Voice Queue', mediaType: 'voice'   },
-        { id: '24bbef42-f0e9-4636-9c7b-312fe7369337', label: 'Chat Queue',  mediaType: 'message' },
-        { id: 'a80216ca-0654-4540-bfe9-bdaa6df29a15', label: 'Email Queue', mediaType: 'email'   },
+        { id: 'b92b0b1a-c4ee-475d-b513-a057a7ce571c', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: 'b92b0b1a-c4ee-475d-b513-a057a7ce571c', label: 'Chat Queue',  mediaType: 'message' },
+        { id: 'b92b0b1a-c4ee-475d-b513-a057a7ce571c', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
   ],
