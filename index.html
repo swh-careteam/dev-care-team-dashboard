@@ -1167,10 +1167,22 @@ async function getObservations() {
 }
 
 // ── AGENTS ──
+// Match Genesys' queue supervisor view "active agents" count. Two filters:
+//   1. joined=true in the query — only members currently opted in to THIS
+//      queue. A member's global presence of "On Queue" is not sufficient,
+//      because they can be On Queue servicing a different queue they're also
+//      joined to. This is what was producing the false "2 on queue" reading
+//      on the new multi-channel POD queues: consolidated queues have broader
+//      rosters, so unrelated On-Queue activity leaks in without joined=true.
+//   2. routingStatus present and not OFF_QUEUE — the agent is actually in a
+//      routable state (IDLE / INTERACTING / NOT_RESPONDING / COMMUNICATING).
 async function getAgents(queueId) {
   try {
-    const d=await api(`/api/v2/routing/queues/${queueId}/members?pageSize=100&expand=routingStatus,presence`);
-    return (d.entities||[]).filter(u=>u.user?.presence?.presenceDefinition?.systemPresence==='On Queue').length;
+    const d = await api(`/api/v2/routing/queues/${queueId}/members?pageSize=100&joined=true&expand=routingStatus,presence`);
+    return (d.entities || []).filter(u => {
+      const rs = u.user?.routingStatus?.status;
+      return rs && rs !== 'OFF_QUEUE';
+    }).length;
   } catch { return null; }
 }
 
