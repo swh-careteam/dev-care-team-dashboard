@@ -747,11 +747,14 @@ const CONFIG = {
       ],
     },
     {
+      // POD 2 consolidated (Apr 2026) into a single multi-channel queue
+      // "Care Team POD 2". All three tiles share one queueId; mediaType
+      // splits the stats per channel.
       id: 2, label: 'POD 2', color: '#805ad5',
       queues: [
-        { id: '2c5b51e5-c734-4b5c-a9a1-9d8ba4492dcc', label: 'Voice Queue', mediaType: 'voice'   },
-        { id: '250f7bde-3237-487b-8d91-88e87c41ee37', label: 'Chat Queue',  mediaType: 'message' },
-        { id: '7c2f0f59-bcd2-4b3e-884f-230f35b3d77d', label: 'Email Queue', mediaType: 'email'   },
+        { id: 'fe8c24e5-83d0-436c-bd03-462d2e0d0f53', label: 'Voice Queue', mediaType: 'voice'   },
+        { id: 'fe8c24e5-83d0-436c-bd03-462d2e0d0f53', label: 'Chat Queue',  mediaType: 'message' },
+        { id: 'fe8c24e5-83d0-436c-bd03-462d2e0d0f53', label: 'Email Queue', mediaType: 'email'   },
       ],
     },
     {
@@ -1158,10 +1161,24 @@ async function getObservations() {
 }
 
 // ── AGENTS ──
+// Match Genesys' queue supervisor view "On Queue" count. Two filters:
+//   1. joined=true in the query — only members currently opted in to THIS
+//      queue. A member's global presence of "On Queue" alone is not enough,
+//      because they could be On Queue for a different queue they're also
+//      joined to. Without joined=true the consolidated multi-channel POD
+//      queues over-count by picking up agents active on other queues.
+//   2. presence.systemPresence === 'On Queue' — the agent has actually
+//      toggled themselves On Queue. routingStatus is too permissive here
+//      because a user-level routingStatus can lag behind a presence change
+//      (e.g., an agent who just entered "Meeting" may still show IDLE /
+//      COMMUNICATING briefly), which is what produced the "5" on POD 3
+//      when Genesys showed 3.
 async function getAgents(queueId) {
   try {
-    const d=await api(`/api/v2/routing/queues/${queueId}/members?pageSize=100&expand=routingStatus,presence`);
-    return (d.entities||[]).filter(u=>u.user?.presence?.presenceDefinition?.systemPresence==='On Queue').length;
+    const d = await api(`/api/v2/routing/queues/${queueId}/members?pageSize=100&joined=true&expand=presence,routingStatus`);
+    return (d.entities || []).filter(u =>
+      u.user?.presence?.presenceDefinition?.systemPresence === 'On Queue'
+    ).length;
   } catch { return null; }
 }
 
