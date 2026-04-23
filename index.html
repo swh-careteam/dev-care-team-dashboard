@@ -473,7 +473,8 @@
     }
     /* ── CHANNEL COLUMNS ── */
     .summary-channels {
-      display: grid; grid-template-columns: 1.55fr 1fr 1fr;
+      /* Channel width split: Voice 38% / Chat 31% / Email 31% (fr units sum to 100). */
+      display: grid; grid-template-columns: 38fr 31fr 31fr;
       flex: 1; min-width: 0;
     }
     .summary-channel {
