@@ -1138,6 +1138,13 @@ async function getObservations() {
     // Genesys sometimes reports chat channels as 'chat', sometimes 'message'.
     // Normalize both to 'message' so downstream lookups by mediaType resolve.
     if (mt === 'chat') mt = 'message';
+    // Roll voice callbacks up into the 'voice' bucket. The Genesys native
+    // supervisor view counts callback waiters under voice (they share the
+    // voice columns with a callback icon), so the custom dashboard should
+    // match. Without this, every callback was being silently dropped from the
+    // Voice Queue waiting / interacting / longest-wait counts on every POD
+    // tile, every voice panel, and the Care Team All Queues summary band.
+    if (mt === 'callback') mt = 'voice';
     if (!mt) mt = '_any';
     if (!map[qId]) map[qId] = {};
     if (!map[qId][mt]) map[qId][mt] = { waiting: 0, interacting: 0, longestWaitSec: 0 };
@@ -1522,9 +1529,14 @@ async function getAggregates(queueIds, mediaType) {
   // totals would double-count across channels without this filter.
   // Genesys uses 'message' for chat — accept both 'chat' and 'message' so the
   // caller can pass either synonym.
+  // Voice callbacks are reported under mediaType='callback' in Genesys
+  // analytics aggregates. Include them in voice rollups so the summary band's
+  // Offered/Abandoned/SL/Avg-Wait counts match the supervisor view.
   const mediaValues = (mediaType === 'message' || mediaType === 'chat')
     ? ['message', 'chat']
-    : [mediaType];
+    : (mediaType === 'voice')
+      ? ['voice', 'callback']
+      : [mediaType];
   const filter = {
     type: 'and',
     clauses: [
@@ -1620,6 +1632,10 @@ async function getPerQueueAggregates() {
     // Normalize Genesys' 'chat' alias to 'message' so it matches how tiles
     // declare themselves in CONFIG.
     if (mt === 'chat') mt = 'message';
+    // Roll voice callbacks (mediaType='callback') into the voice bucket so
+    // per-tile Offered Today / Abandoned Today on Voice Queues includes
+    // callbacks — matching how Genesys' supervisor view counts them.
+    if (mt === 'callback') mt = 'voice';
     const compositeKey = `${qid}:${mt}`;
     if (!expected.has(compositeKey)) continue;
     if (!map[compositeKey]) map[compositeKey] = { nOffered: 0, nAbandoned: 0 };
